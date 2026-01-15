@@ -1,0 +1,1993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skew Sculptor Studio | Advanced Volatility Analysis Platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        :root {
+            --bg-primary: #050810;
+            --bg-secondary: #0d1117;
+            --bg-tertiary: #161b22;
+            --bg-card: rgba(13, 17, 23, 0.9);
+            --accent-blue: #58a6ff;
+            --accent-cyan: #39d4d4;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-purple: #a371f7;
+            --accent-pink: #db61a2;
+            --border-color: rgba(48, 54, 61, 0.8);
+        }
+        
+        body {
+            background: var(--bg-primary);
+            background-image: 
+                radial-gradient(ellipse at 0% 0%, rgba(88, 166, 255, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 100% 100%, rgba(163, 113, 247, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(57, 212, 212, 0.03) 0%, transparent 60%);
+            min-height: 100vh;
+        }
+        
+        .glass-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+        
+        .glass-panel-hover:hover {
+            border-color: rgba(88, 166, 255, 0.3);
+            box-shadow: 0 4px 24px rgba(88, 166, 255, 0.1);
+        }
+        
+        .glow-blue { box-shadow: 0 0 30px rgba(88, 166, 255, 0.4), inset 0 0 20px rgba(88, 166, 255, 0.05); }
+        .glow-green { box-shadow: 0 0 30px rgba(63, 185, 80, 0.4), inset 0 0 20px rgba(63, 185, 80, 0.05); }
+        .glow-red { box-shadow: 0 0 30px rgba(248, 81, 73, 0.4), inset 0 0 20px rgba(248, 81, 73, 0.05); }
+        .glow-purple { box-shadow: 0 0 30px rgba(163, 113, 247, 0.4), inset 0 0 20px rgba(163, 113, 247, 0.05); }
+        .glow-yellow { box-shadow: 0 0 30px rgba(210, 153, 34, 0.4), inset 0 0 20px rgba(210, 153, 34, 0.05); }
+        
+        .metric-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .metric-card:hover::before {
+            opacity: 1;
+        }
+        .metric-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: rgba(88, 166, 255, 0.4);
+        }
+        
+        .signal-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .tab-active {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(163, 113, 247, 0.2));
+            border-color: rgba(88, 166, 255, 0.5);
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.2);
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { 
+            background: linear-gradient(180deg, var(--accent-blue), var(--accent-purple)); 
+            border-radius: 4px; 
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+        
+        .chart-container { position: relative; height: 300px; }
+        
+        .skew-gradient {
+            background: linear-gradient(90deg, 
+                #f85149 0%, 
+                #d29922 20%, 
+                #3fb950 40%, 
+                #39d4d4 60%, 
+                #3fb950 80%, 
+                #d29922 90%,
+                #f85149 100%
+            );
+        }
+        
+        .regime-glow-normal { box-shadow: inset 0 0 20px rgba(63, 185, 80, 0.2); }
+        .regime-glow-elevated { box-shadow: inset 0 0 20px rgba(210, 153, 34, 0.2); }
+        .regime-glow-stressed { box-shadow: inset 0 0 20px rgba(255, 140, 0, 0.2); }
+        .regime-glow-crisis { box-shadow: inset 0 0 20px rgba(248, 81, 73, 0.2); }
+        
+        .number-ticker {
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .sparkline-container {
+            height: 40px;
+            width: 100px;
+        }
+        
+        .heatmap-cell {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        
+        .tooltip-custom {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 0 20px rgba(88, 166, 255, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .stat-badge {
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), rgba(163, 113, 247, 0.1));
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+        
+        .data-stream {
+            overflow: hidden;
+        }
+        .data-stream-item {
+            animation: streamIn 0.5s ease-out;
+        }
+        @keyframes streamIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .correlation-matrix td {
+            transition: all 0.2s ease;
+        }
+        .correlation-matrix td:hover {
+            transform: scale(1.15);
+        }
+
+        .mini-chart {
+            width: 80px;
+            height: 30px;
+        }
+
+        .alert-banner {
+            background: linear-gradient(90deg, rgba(248, 81, 73, 0.2), transparent);
+            border-left: 3px solid var(--accent-red);
+            animation: alertPulse 2s infinite;
+        }
+        @keyframes alertPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-100">
+    <!-- Alert Banner -->
+    <div id="alertBanner" class="hidden alert-banner px-4 py-2 text-sm flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <span class="text-red-400">⚠️</span>
+            <span id="alertMessage">High volatility regime detected - Consider adjusting positions</span>
+        </div>
+        <button onclick="document.getElementById('alertBanner').classList.add('hidden')" class="text-gray-400 hover:text-white">✕</button>
+    </div>
+
+    <!-- Header -->
+    <header class="glass-panel border-b border-gray-800 sticky top-0 z-50">
+        <div class="max-w-[1920px] mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="text-xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                                Skew Sculptor Studio
+                            </span>
+                            <div class="text-xs text-gray-500">Professional Volatility Analysis</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <!-- Underlying Selector -->
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="text-gray-400">Underlying:</span>
+                        <select id="underlyingSelect" class="bg-gray-800/80 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20">
+                            <option value="SPX">SPX (S&P 500)</option>
+                            <option value="NDX">NDX (Nasdaq 100)</option>
+                            <option value="RUT">RUT (Russell 2000)</option>
+                            <option value="VIX">VIX</option>
+                            <option value="AAPL">AAPL</option>
+                            <option value="TSLA">TSLA</option>
+                            <option value="NVDA">NVDA</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Data Status -->
+                    <div class="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <div class="relative">
+                            <div class="w-2 h-2 bg-green-500 rounded-full signal-pulse"></div>
+                            <div class="absolute inset-0 w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
+                        </div>
+                        <span class="text-sm text-green-400 font-medium">Live</span>
+                    </div>
+                    
+                    <!-- Time Display -->
+                    <div class="flex items-center gap-2 text-sm">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span class="mono text-gray-400" id="currentTime"></span>
+                    </div>
+                    
+                    <!-- Settings -->
+                    <button class="p-2 rounded-lg hover:bg-gray-800 transition-colors" title="Settings">
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-[1920px] mx-auto p-4 space-y-4">
+        <!-- Top Metrics Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+            <!-- Spot Price -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">Spot</div>
+                    <div class="sparkline-container" id="spotSparkline"></div>
+                </div>
+                <div class="text-2xl font-bold mono" id="spotPrice">4,567.23</div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400" id="spotChange">+0.45%</span>
+                    <span class="text-xs text-gray-500" id="spotDayRange">H: 4,580 L: 4,550</span>
+                </div>
+            </div>
+            
+            <!-- ATM IV -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">ATM IV (30D)</div>
+                    <div class="w-2 h-2 rounded-full bg-cyan-400"></div>
+                </div>
+                <div class="text-2xl font-bold mono text-cyan-400" id="atmIV">18.45%</div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-red-400" id="atmIVChange">▼ 0.32</span>
+                    <span class="text-xs text-gray-500">IV Rank: <span id="ivRank" class="text-cyan-400">42%</span></span>
+                </div>
+            </div>
+            
+            <!-- 25D Risk Reversal -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">25Δ RR</div>
+                    <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold mono text-purple-400" id="rr25">-3.45</div>
+                <div class="text-xs mt-1">
+                    <span class="text-gray-400">Put Skew: </span>
+                    <span class="text-red-400" id="skewBias">Strong</span>
+                </div>
+            </div>
+            
+            <!-- 25D Butterfly -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">25Δ BF</div>
+                    <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                    </svg>
+                </div>
+                <div class="text-2xl font-bold mono text-yellow-400" id="bf25">2.15</div>
+                <div class="text-xs mt-1 text-gray-400">Curvature: <span class="text-yellow-400" id="curvature">Normal</span></div>
+            </div>
+            
+            <!-- Skew Index -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">SKEW Index</div>
+                    <div class="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400" id="skewPercentile">78th</div>
+                </div>
+                <div class="text-2xl font-bold mono text-blue-400" id="skewIndex">128.5</div>
+                <div class="w-full bg-gray-700 rounded-full h-1 mt-2">
+                    <div class="h-1 rounded-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500" id="skewBar" style="width: 78%"></div>
+                </div>
+            </div>
+            
+            <!-- VIX Correlation -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">VIX Corr</div>
+                </div>
+                <div class="text-2xl font-bold mono" id="vixCorr">-0.82</div>
+                <div class="text-xs mt-1 text-gray-400">30D Rolling</div>
+            </div>
+            
+            <!-- Put/Call Ratio -->
+            <div class="glass-panel rounded-xl p-4 metric-card glass-panel-hover">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">P/C Ratio</div>
+                </div>
+                <div class="text-2xl font-bold mono text-pink-400" id="pcRatio">1.24</div>
+                <div class="text-xs mt-1">
+                    <span class="text-gray-400">OI: </span>
+                    <span class="text-gray-300" id="totalOI">2.4M</span>
+                </div>
+            </div>
+            
+            <!-- Regime -->
+            <div class="glass-panel rounded-xl p-4 metric-card regime-indicator regime-glow-normal" id="regimeCard">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-gray-400 uppercase tracking-wider">Regime</div>
+                    <div class="relative">
+                        <svg class="progress-ring w-8 h-8" viewBox="0 0 36 36">
+                            <circle cx="18" cy="18" r="15" fill="none" stroke="#1f2937" stroke-width="3"/>
+                            <circle id="regimeRing" cx="18" cy="18" r="15" fill="none" stroke="#3fb950" stroke-width="3" 
+                                stroke-dasharray="85 100" stroke-linecap="round"/>
+                        </svg>
+                        <span class="absolute inset-0 flex items-center justify-center text-xs mono" id="regimeScore">85</span>
+                    </div>
+                </div>
+                <div class="text-lg font-bold text-green-400" id="regimeLabel">NORMAL</div>
+                <div class="text-xs text-gray-400 mt-1" id="regimeConfidence">Confidence: 85%</div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Row -->
+        <div class="grid grid-cols-4 lg:grid-cols-8 gap-2 text-center">
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">10Δ RR</div>
+                <div class="mono text-sm font-semibold text-purple-300" id="rr10">-5.82</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">10Δ BF</div>
+                <div class="mono text-sm font-semibold text-yellow-300" id="bf10">3.45</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">Vol of Vol</div>
+                <div class="mono text-sm font-semibold text-cyan-300" id="volOfVol">4.2</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">Term Slope</div>
+                <div class="mono text-sm font-semibold text-green-300" id="termSlope">+0.8</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">Realized Vol</div>
+                <div class="mono text-sm font-semibold text-blue-300" id="realizedVol">15.2%</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">Vol Premium</div>
+                <div class="mono text-sm font-semibold text-green-300" id="volPremium">+3.2</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">Gamma Exp</div>
+                <div class="mono text-sm font-semibold text-pink-300" id="gammaExp">$2.1B</div>
+            </div>
+            <div class="stat-badge rounded-lg py-2 px-3">
+                <div class="text-xs text-gray-400">Delta Adj</div>
+                <div class="mono text-sm font-semibold text-orange-300" id="deltaAdj">-0.15</div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="flex gap-2 overflow-x-auto pb-2">
+            <button class="tab-btn tab-active glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2" data-tab="skew">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                </svg>
+                Volatility Skew
+            </button>
+            <button class="tab-btn glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 border border-transparent hover:border-gray-600" data-tab="term">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Term Structure
+            </button>
+            <button class="tab-btn glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 border border-transparent hover:border-gray-600" data-tab="surface">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+                </svg>
+                Vol Surface
+            </button>
+            <button class="tab-btn glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 border border-transparent hover:border-gray-600" data-tab="greeks">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                Greeks Analysis
+            </button>
+            <button class="tab-btn glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 border border-transparent hover:border-gray-600" data-tab="signals">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                Trading Signals
+                <span class="w-2 h-2 bg-red-500 rounded-full signal-pulse"></span>
+            </button>
+            <button class="tab-btn glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 border border-transparent hover:border-gray-600" data-tab="history">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Historical
+            </button>
+            <button class="tab-btn glass-panel px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 border border-transparent hover:border-gray-600" data-tab="correlation">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"/>
+                </svg>
+                Correlation
+            </button>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Left Column - Charts -->
+            <div class="lg:col-span-2 space-y-4">
+                <!-- Volatility Smile Chart -->
+                <div id="skewPanel" class="tab-panel glass-panel rounded-xl p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg flex items-center gap-2">
+                                Volatility Smile / Skew
+                                <span class="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-400">Live</span>
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-1">Interactive implied volatility curve across strikes</p>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <select id="expirySelect" class="bg-gray-800/80 border border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500">
+                                <option value="7">7 DTE</option>
+                                <option value="14">14 DTE</option>
+                                <option value="30" selected>30 DTE</option>
+                                <option value="45">45 DTE</option>
+                                <option value="60">60 DTE</option>
+                                <option value="90">90 DTE</option>
+                            </select>
+                            <button class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition" title="Fullscreen">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="smileChart"></canvas>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between">
+                        <div class="flex items-center gap-6 text-xs text-gray-400">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-1 rounded bg-blue-500"></div>
+                                <span>Market IV</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-1 rounded bg-purple-500 opacity-70" style="border: 1px dashed #a371f7"></div>
+                                <span>SABR Model</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-1 rounded bg-gray-500 opacity-40"></div>
+                                <span>Yesterday</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded border-2 border-cyan-500 bg-transparent"></div>
+                                <span>ATM Strike</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="text-xs px-3 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 transition">Export</button>
+                            <button class="text-xs px-3 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 transition">Refresh</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Term Structure Panel -->
+                <div id="termPanel" class="tab-panel glass-panel rounded-xl p-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">Skew Term Structure</h3>
+                            <p class="text-xs text-gray-500 mt-1">Risk reversal and butterfly across tenors</p>
+                        </div>
+                        <div class="flex gap-2 text-sm">
+                            <button class="term-metric-btn px-3 py-1.5 rounded-lg bg-blue-600 text-white" data-metric="rr25">25Δ RR</button>
+                            <button class="term-metric-btn px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600" data-metric="rr10">10Δ RR</button>
+                            <button class="term-metric-btn px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600" data-metric="bf25">25Δ BF</button>
+                            <button class="term-metric-btn px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600" data-metric="atmiv">ATM IV</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="termChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Vol Surface Panel -->
+                <div id="surfacePanel" class="tab-panel glass-panel rounded-xl p-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">Volatility Surface Heatmap</h3>
+                            <p class="text-xs text-gray-500 mt-1">IV by delta and tenor with change indicators</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="surfaceViewAbs" class="text-xs px-3 py-1 rounded-lg bg-blue-600 text-white">Absolute</button>
+                            <button id="surfaceViewChg" class="text-xs px-3 py-1 rounded-lg bg-gray-700 hover:bg-gray-600">Change</button>
+                        </div>
+                    </div>
+                    <div id="surfaceHeatmap" class="overflow-x-auto"></div>
+                    <div class="mt-4 flex items-center justify-center gap-4 text-xs">
+                        <span class="text-gray-400">Low IV</span>
+                        <div class="h-3 w-48 rounded" style="background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6, #f59e0b, #ef4444)"></div>
+                        <span class="text-gray-400">High IV</span>
+                    </div>
+                </div>
+
+                <!-- Greeks Analysis Panel -->
+                <div id="greeksPanel" class="tab-panel glass-panel rounded-xl p-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">Greeks Exposure Analysis</h3>
+                            <p class="text-xs text-gray-500 mt-1">Aggregate market Greek exposures</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="chart-container" style="height: 200px;">
+                            <canvas id="gammaChart"></canvas>
+                        </div>
+                        <div class="chart-container" style="height: 200px;">
+                            <canvas id="vegaChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-3 mt-4">
+                        <div class="bg-gray-800/50 rounded-lg p-3 text-center">
+                            <div class="text-xs text-gray-400">Net Gamma</div>
+                            <div class="mono text-lg text-green-400" id="netGamma">+$1.2B</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-3 text-center">
+                            <div class="text-xs text-gray-400">Net Vega</div>
+                            <div class="mono text-lg text-purple-400" id="netVega">-$450M</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-3 text-center">
+                            <div class="text-xs text-gray-400">Gamma Flip</div>
+                            <div class="mono text-lg text-yellow-400" id="gammaFlip">4,520</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-3 text-center">
+                            <div class="text-xs text-gray-400">Max Pain</div>
+                            <div class="mono text-lg text-cyan-400" id="maxPain">4,550</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trading Signals Panel -->
+                <div id="signalsPanel" class="tab-panel glass-panel rounded-xl p-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg flex items-center gap-2">
+                                Skew Trading Signals
+                                <span class="w-2 h-2 bg-green-500 rounded-full signal-pulse"></span>
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-1">AI-powered trade recommendations based on skew analysis</p>
+                        </div>
+                        <span class="text-xs text-gray-400">Auto-refresh: 5 min</span>
+                    </div>
+                    <div id="signalsList" class="space-y-3 max-h-[500px] overflow-y-auto"></div>
+                </div>
+
+                <!-- Historical Analysis Panel -->
+                <div id="historyPanel" class="tab-panel glass-panel rounded-xl p-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">Historical Skew Analysis</h3>
+                            <p class="text-xs text-gray-500 mt-1">Long-term skew behavior and regime identification</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="historyPeriod" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm">
+                                <option value="30">30 Days</option>
+                                <option value="60">60 Days</option>
+                                <option value="90" selected>90 Days</option>
+                                <option value="180">180 Days</option>
+                                <option value="365">1 Year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Correlation Panel -->
+                <div id="correlationPanel" class="tab-panel glass-panel rounded-xl p-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">Cross-Asset Correlation Matrix</h3>
+                            <p class="text-xs text-gray-500 mt-1">30-day rolling correlations</p>
+                        </div>
+                    </div>
+                    <div id="correlationMatrix" class="overflow-x-auto"></div>
+                </div>
+
+                <!-- Risk Reversal Time Series -->
+                <div class="glass-panel rounded-xl p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="font-semibold text-lg">Risk Reversal Time Series</h3>
+                            <p class="text-xs text-gray-500 mt-1">Intraday and historical RR tracking</p>
+                        </div>
+                        <div class="flex gap-1 text-xs">
+                            <button class="rr-period-btn px-3 py-1.5 rounded-lg bg-blue-600 text-white" data-period="1D">1D</button>
+                            <button class="rr-period-btn px-3 py-1.5 rounded-lg bg-gray-700" data-period="1W">1W</button>
+                            <button class="rr-period-btn px-3 py-1.5 rounded-lg bg-gray-700" data-period="1M">1M</button>
+                            <button class="rr-period-btn px-3 py-1.5 rounded-lg bg-gray-700" data-period="3M">3M</button>
+                            <button class="rr-period-btn px-3 py-1.5 rounded-lg bg-gray-700" data-period="1Y">1Y</button>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="rrTimeSeriesChart"></canvas>
+                    </div>
+                    <div class="grid grid-cols-4 gap-3 mt-4 text-xs">
+                        <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                            <div class="text-gray-400">High</div>
+                            <div class="mono text-red-400" id="rrHigh">-2.15</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                            <div class="text-gray-400">Low</div>
+                            <div class="mono text-green-400" id="rrLow">-4.85</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                            <div class="text-gray-400">Mean</div>
+                            <div class="mono text-blue-400" id="rrMean">-3.42</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                            <div class="text-gray-400">Std Dev</div>
+                            <div class="mono text-purple-400" id="rrStd">0.68</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Metrics & Signals -->
+            <div class="space-y-4">
+                <!-- Regime Classification -->
+                <div class="glass-panel rounded-xl p-5">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Regime Classification
+                    </h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center group">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                <span class="text-sm text-gray-300">Normal</span>
+                            </div>
+                            <div class="flex-1 mx-3 bg-gray-700/50 rounded-full h-2.5 overflow-hidden">
+                                <div class="regime-bar bg-gradient-to-r from-green-600 to-green-400 h-2.5 rounded-full transition-all duration-700" id="regimeNormal" style="width: 15%"></div>
+                            </div>
+                            <span class="mono text-sm text-green-400 w-12 text-right" id="regimeNormalPct">15%</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                <span class="text-sm text-gray-300">Elevated</span>
+                            </div>
+                            <div class="flex-1 mx-3 bg-gray-700/50 rounded-full h-2.5 overflow-hidden">
+                                <div class="regime-bar bg-gradient-to-r from-yellow-600 to-yellow-400 h-2.5 rounded-full transition-all duration-700" id="regimeElevated" style="width: 60%"></div>
+                            </div>
+                            <span class="mono text-sm text-yellow-400 w-12 text-right" id="regimeElevatedPct">60%</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-orange-500"></div>
+                                <span class="text-sm text-gray-300">Stressed</span>
+                            </div>
+                            <div class="flex-1 mx-3 bg-gray-700/50 rounded-full h-2.5 overflow-hidden">
+                                <div class="regime-bar bg-gradient-to-r from-orange-600 to-orange-400 h-2.5 rounded-full transition-all duration-700" id="regimeStressed" style="width: 20%"></div>
+                            </div>
+                            <span class="mono text-sm text-orange-400 w-12 text-right" id="regimeStressedPct">20%</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <span class="text-sm text-gray-300">Crisis</span>
+                            </div>
+                            <div class="flex-1 mx-3 bg-gray-700/50 rounded-full h-2.5 overflow-hidden">
+                                <div class="regime-bar bg-gradient-to-r from-red-600 to-red-400 h-2.5 rounded-full transition-all duration-700" id="regimeCrisis" style="width: 5%"></div>
+                            </div>
+                            <span class="mono text-sm text-red-400 w-12 text-right" id="regimeCrisisPct">5%</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-gray-700/50">
+                        <div class="text-xs text-gray-400 mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                            </svg>
+                            Transition Probability (5D)
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                                <div class="text-gray-500">→ Normal</div>
+                                <div class="text-green-400 font-semibold mono" id="transNormal">45%</div>
+                            </div>
+                            <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                                <div class="text-gray-500">→ Elevated</div>
+                                <div class="text-yellow-400 font-semibold mono" id="transElevated">35%</div>
+                            </div>
+                            <div class="bg-gray-800/50 rounded-lg p-2 text-center">
+                                <div class="text-gray-500">→ Stressed</div>
+                                <div class="text-orange-400 font-semibold mono" id="transStressed">12%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skew Metrics Table -->
+                <div class="glass-panel rounded-xl p-5">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        Skew Metrics by Tenor
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-gray-400 text-xs border-b border-gray-700/50">
+                                    <th class="text-left pb-3">Tenor</th>
+                                    <th class="text-right pb-3">ATM IV</th>
+                                    <th class="text-right pb-3">25Δ RR</th>
+                                    <th class="text-right pb-3">25Δ BF</th>
+                                    <th class="text-right pb-3">Chg</th>
+                                </tr>
+                            </thead>
+                            <tbody class="mono text-xs" id="skewMetricsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Butterfly Spread Monitor -->
+                <div class="glass-panel rounded-xl p-5">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                        </svg>
+                        Butterfly Monitor
+                    </h3>
+                    <div class="chart-container" style="height: 180px;">
+                        <canvas id="butterflyChart"></canvas>
+                    </div>
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-xs">
+                        <div class="bg-gray-800/50 rounded-lg p-3">
+                            <div class="text-gray-400 mb-1">10Δ Butterfly</div>
+                            <div class="mono text-xl text-cyan-400" id="bf10Value">3.85</div>
+                            <div class="text-green-400 text-xs mt-1">▲ 0.12</div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-3">
+                            <div class="text-gray-400 mb-1">Convexity Score</div>
+                            <div class="mono text-xl text-purple-400" id="convexityScore">0.72</div>
+                            <div class="text-xs text-gray-500 mt-1">95th percentile</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Signals -->
+                <div class="glass-panel rounded-xl p-5">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        Active Signals
+                        <span class="w-2 h-2 bg-green-500 rounded-full signal-pulse"></span>
+                        <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400" id="signalCount">3</span>
+                    </h3>
+                    <div class="space-y-2 max-h-[300px] overflow-y-auto" id="activeSignals"></div>
+                </div>
+
+                <!-- Skew Statistics -->
+                <div class="glass-panel rounded-xl p-5">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        Skew Statistics (30D)
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-gray-400 text-xs mb-1">Z-Score</div>
+                            <div class="mono text-2xl font-bold" id="skewZScore">1.45</div>
+                            <div class="text-xs text-yellow-400">Above mean</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400 text-xs mb-1">Historical Range</div>
+                            <div class="mono text-lg" id="skewRange">-4.2 / -2.1</div>
+                            <div class="text-xs text-gray-500">Min / Max</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400 text-xs mb-1">Mean Reversion</div>
+                            <div class="flex items-center gap-2">
+                                <div class="mono text-xl text-yellow-400" id="meanReversion">72%</div>
+                                <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-gray-400 text-xs mb-1">Trend Strength</div>
+                            <div class="mono text-xl text-blue-400" id="trendStrength">0.38</div>
+                            <div class="text-xs text-gray-500">ADX-based</div>
+                        </div>
+                    </div>
+                    <div class="mt-5">
+                        <div class="flex justify-between text-xs text-gray-400 mb-2">
+                            <span>Skew Percentile</span>
+                            <span id="skewPctLabel">78th</span>
+                        </div>
+                        <div class="h-3 w-full skew-gradient rounded-full relative">
+                            <div class="absolute w-4 h-4 bg-white rounded-full -top-0.5 transform -translate-x-1/2 border-2 border-gray-900 shadow-lg transition-all duration-500" id="skewMarker" style="left: 78%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>0%</span>
+                            <span>50%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-gray-800 mt-8 py-4">
+        <div class="max-w-[1920px] mx-auto px-4 flex items-center justify-between text-xs text-gray-500">
+            <div class="flex items-center gap-4">
+                <span>© 2024 Skew Sculptor Studio</span>
+                <span>•</span>
+                <span>Data delayed 15 min</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span>Last update: <span class="mono" id="lastUpdate">--:--:--</span></span>
+                <span>|</span>
+                <span>Latency: <span class="mono text-green-400" id="latency">12ms</span></span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ==================== DATA SIMULATION ====================
+        class SkewDataGenerator {
+            constructor() {
+                this.spot = 4567.23;
+                this.atmIV = 18.45;
+                this.baseSkew = -3.45;
+                this.baseBF = 2.15;
+                this.historicalRR = [];
+                this.initHistoricalData();
+            }
+
+            initHistoricalData() {
+                let rr = this.baseSkew;
+                for (let i = 0; i < 100; i++) {
+                    rr += (Math.random() - 0.5) * 0.2;
+                    rr = rr * 0.98 + this.baseSkew * 0.02;
+                    this.historicalRR.push(rr);
+                }
+            }
+
+            generateSmileData(dte = 30) {
+                const strikes = [];
+                const ivs = [];
+                const yesterdayIVs = [];
+                const sabrFit = [];
+                
+                const atmStrike = Math.round(this.spot / 5) * 5;
+                const strikeSpacing = Math.round(this.spot * 0.01);
+                
+                for (let i = -12; i <= 12; i++) {
+                    const strike = atmStrike + (i * strikeSpacing);
+                    const moneyness = Math.log(strike / this.spot);
+                    
+                    const skewComponent = -0.15 * moneyness * (30 / dte);
+                    const smileComponent = 0.5 * moneyness * moneyness;
+                    const noise = (Math.random() - 0.5) * 0.25;
+                    
+                    const iv = this.atmIV + skewComponent * 10 + smileComponent * 8 + noise;
+                    const yesterdayIV = iv + (Math.random() - 0.5) * 0.8;
+                    const sabr = this.atmIV + skewComponent * 10 + smileComponent * 8;
+                    
+                    strikes.push(strike);
+                    ivs.push(Math.max(iv, 5));
+                    yesterdayIVs.push(Math.max(yesterdayIV, 5));
+                    sabrFit.push(Math.max(sabr, 5));
+                }
+                
+                return { strikes, ivs, yesterdayIVs, sabrFit, atmStrike };
+            }
+
+            generateTermStructure() {
+                const tenors = [7, 14, 21, 30, 45, 60, 90, 120, 180, 365];
+                const rr25 = tenors.map((t) => this.baseSkew * (1 - 0.3 * Math.log(t / 30)) + (Math.random() - 0.5) * 0.4);
+                const rr10 = rr25.map(r => r * 1.5 + (Math.random() - 0.5) * 0.3);
+                const bf25 = tenors.map((t) => this.baseBF * (1 + 0.2 * Math.log(t / 30)) + (Math.random() - 0.5) * 0.25);
+                const atmiv = tenors.map((t) => this.atmIV * (1 + 0.08 * Math.log(t / 30)) + (Math.random() - 0.5) * 0.5);
+                
+                return { tenors, rr25, rr10, bf25, atmiv };
+            }
+
+            generateSurface() {
+                const tenors = [7, 14, 30, 45, 60, 90, 180];
+                const deltas = [10, 25, 50, 75, 90];
+                const deltaLabels = ['10Δ Put', '25Δ Put', 'ATM', '25Δ Call', '10Δ Call'];
+                
+                const surface = tenors.map(t => {
+                    return deltas.map((d) => {
+                        const skew = (50 - d) * 0.08 * (30 / t);
+                        const base = this.atmIV * (1 + 0.08 * Math.log(t / 30));
+                        return base + skew + (Math.random() - 0.5) * 0.4;
+                    });
+                });
+                
+                const changes = tenors.map(() => {
+                    return deltas.map(() => (Math.random() - 0.5) * 1);
+                });
+                
+                return { tenors, deltaLabels, surface, changes };
+            }
+
+            generateTimeSeries(points = 100) {
+                const data = [];
+                let rr = this.baseSkew;
+                
+                for (let i = 0; i < points; i++) {
+                    rr += (Math.random() - 0.5) * 0.2;
+                    rr = rr * 0.98 + this.baseSkew * 0.02;
+                    data.push(rr);
+                }
+                
+                return data;
+            }
+
+            generateHistoricalData(days = 90) {
+                const data = [];
+                let rr = this.baseSkew;
+                let bf = this.baseBF;
+                let regime = 1;
+                
+                for (let i = 0; i < days; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (days - i));
+                    
+                    if (Math.random() < 0.03) {
+                        regime = Math.floor(Math.random() * 4);
+                    }
+                    
+                    const regimeMultiplier = [1, 1.2, 1.5, 2][regime];
+                    rr += (Math.random() - 0.5) * 0.3 * regimeMultiplier;
+                    rr = Math.max(-8, Math.min(-1, rr));
+                    
+                    bf += (Math.random() - 0.5) * 0.2;
+                    bf = Math.max(0.5, Math.min(5, bf));
+                    
+                    data.push({
+                        date: date.toISOString().split('T')[0],
+                        rr25: rr,
+                        bf25: bf,
+                        atmIV: this.atmIV + (Math.random() - 0.5) * 3,
+                        regime: ['Normal', 'Elevated', 'Stressed', 'Crisis'][regime]
+                    });
+                }
+                
+                return data;
+            }
+
+            generateSignals() {
+                const signalTypes = [
+                    { type: 'SKEW_RICH', name: 'Skew Rich Alert', strategy: 'Sell 25Δ Put / Buy 25Δ Call', direction: 'bearish_skew', risk: 'Medium' },
+                    { type: 'SKEW_CHEAP', name: 'Skew Cheap Alert', strategy: 'Buy 25Δ Put / Sell 25Δ Call', direction: 'bullish_skew', risk: 'Medium' },
+                    { type: 'BF_HIGH', name: 'High Convexity', strategy: 'Sell Iron Butterfly', direction: 'neutral', risk: 'Low' },
+                    { type: 'BF_LOW', name: 'Low Convexity', strategy: 'Buy Iron Butterfly', direction: 'neutral', risk: 'Low' },
+                    { type: 'TERM_INVERSION', name: 'Term Inversion', strategy: 'Put Calendar Spread', direction: 'neutral', risk: 'Medium' },
+                    { type: 'REGIME_SHIFT', name: 'Regime Change', strategy: 'Reduce Exposure', direction: 'caution', risk: 'High' },
+                    { type: 'VOL_SPIKE', name: 'Vol Spike Detection', strategy: 'Sell Straddle', direction: 'neutral', risk: 'High' },
+                    { type: 'MEAN_REVERT', name: 'Mean Reversion', strategy: 'Fade Move', direction: 'neutral', risk: 'Medium' }
+                ];
+                
+                const signals = [];
+                const count = 3 + Math.floor(Math.random() * 4);
+                
+                for (let i = 0; i < count; i++) {
+                    const signal = signalTypes[Math.floor(Math.random() * signalTypes.length)];
+                    const strength = 0.5 + Math.random() * 0.5;
+                    const tenors = [7, 14, 30, 45, 60, 90];
+                    const tenor = tenors[Math.floor(Math.random() * tenors.length)];
+                    const pnl = (Math.random() - 0.3) * 200;
+                    
+                    signals.push({
+                        ...signal,
+                        strength,
+                        tenor,
+                        pnl,
+                        timestamp: new Date(Date.now() - Math.random() * 3600000).toLocaleTimeString()
+                    });
+                }
+                
+                return signals.sort((a, b) => b.strength - a.strength);
+            }
+
+            getRegimeClassification() {
+                const r = Math.random();
+                if (r < 0.5) return { regime: 'NORMAL', probs: { normal: 60, elevated: 25, stressed: 12, crisis: 3 }, color: 'green' };
+                if (r < 0.8) return { regime: 'ELEVATED', probs: { normal: 15, elevated: 55, stressed: 25, crisis: 5 }, color: 'yellow' };
+                if (r < 0.95) return { regime: 'STRESSED', probs: { normal: 5, elevated: 20, stressed: 60, crisis: 15 }, color: 'orange' };
+                return { regime: 'CRISIS', probs: { normal: 2, elevated: 8, stressed: 30, crisis: 60 }, color: 'red' };
+            }
+
+            generateCorrelationMatrix() {
+                const assets = ['SPX', 'VIX', 'NDX', 'RUT', 'TLT', 'GLD', 'DXY'];
+                const matrix = [];
+                
+                for (let i = 0; i < assets.length; i++) {
+                    const row = [];
+                    for (let j = 0; j < assets.length; j++) {
+                        if (i === j) {
+                            row.push(1);
+                        } else if (j < i) {
+                            row.push(matrix[j][i]);
+                        } else {
+                            let corr = (Math.random() - 0.5) * 2;
+                            if ((assets[i] === 'SPX' && assets[j] === 'VIX') || 
+                                (assets[i] === 'VIX' && assets[j] === 'SPX')) {
+                                corr = -0.7 - Math.random() * 0.2;
+                            }
+                            if ((assets[i] === 'SPX' && assets[j] === 'NDX') || 
+                                (assets[i] === 'NDX' && assets[j] === 'SPX')) {
+                                corr = 0.85 + Math.random() * 0.1;
+                            }
+                            row.push(corr);
+                        }
+                    }
+                    matrix.push(row);
+                }
+                
+                return { assets, matrix };
+            }
+
+            generateGreeksData() {
+                const strikes = [];
+                const gamma = [];
+                const vega = [];
+                
+                const atmStrike = Math.round(this.spot / 25) * 25;
+                
+                for (let i = -10; i <= 10; i++) {
+                    const strike = atmStrike + (i * 25);
+                    strikes.push(strike);
+                    
+                    const distance = Math.abs(i);
+                    const g = (Math.random() * 0.5 + 0.5) * Math.exp(-distance * 0.3) * (Math.random() > 0.5 ? 1 : -1);
+                    const v = (Math.random() * 0.3 + 0.2) * Math.exp(-distance * 0.2);
+                    
+                    gamma.push(g * 1000);
+                    vega.push(v * 500);
+                }
+                
+                return { strikes, gamma, vega };
+            }
+
+            updatePrices() {
+                this.spot += (Math.random() - 0.5) * 3;
+                this.atmIV += (Math.random() - 0.5) * 0.08;
+                this.baseSkew += (Math.random() - 0.5) * 0.03;
+                this.baseBF += (Math.random() - 0.5) * 0.015;
+                
+                this.atmIV = Math.max(10, Math.min(50, this.atmIV));
+                this.baseSkew = Math.max(-8, Math.min(-1, this.baseSkew));
+                this.baseBF = Math.max(0.5, Math.min(5, this.baseBF));
+            }
+        }
+
+        // ==================== CHART INITIALIZATION ====================
+        const dataGen = new SkewDataGenerator();
+        let charts = {};
+
+        const chartColors = {
+            blue: '#58a6ff',
+            purple: '#a371f7',
+            cyan: '#39d4d4',
+            green: '#3fb950',
+            yellow: '#d29922',
+            red: '#f85149',
+            pink: '#db61a2',
+            gray: '#8b949e'
+        };
+
+        function createSmileChart() {
+            const ctx = document.getElementById('smileChart').getContext('2d');
+            const data = dataGen.generateSmileData();
+            
+            charts.smile = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.strikes,
+                    datasets: [
+                        {
+                            label: 'Market IV',
+                            data: data.ivs,
+                            borderColor: chartColors.blue,
+                            backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: chartColors.blue,
+                            pointBorderColor: '#0d1117',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'SABR Model',
+                            data: data.sabrFit,
+                            borderColor: chartColors.purple,
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Yesterday',
+                            data: data.yesterdayIVs,
+                            borderColor: 'rgba(139, 148, 158, 0.4)',
+                            borderWidth: 1.5,
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(13, 17, 23, 0.95)',
+                            borderColor: chartColors.blue,
+                            borderWidth: 1,
+                            titleColor: '#fff',
+                            bodyColor: '#8b949e',
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                title: (ctx) => `Strike: ${ctx[0].label}`,
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e', maxTicksLimit: 12, font: { size: 10 } },
+                            title: { display: true, text: 'Strike Price', color: '#8b949e', font: { size: 11 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { 
+                                color: '#8b949e',
+                                callback: (v) => v.toFixed(1) + '%',
+                                font: { size: 10 }
+                            },
+                            title: { display: true, text: 'Implied Volatility', color: '#8b949e', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTermChart() {
+            const ctx = document.getElementById('termChart').getContext('2d');
+            const data = dataGen.generateTermStructure();
+            
+            charts.term = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.tenors.map(t => t + 'D'),
+                    datasets: [{
+                        label: '25Δ Risk Reversal',
+                        data: data.rr25,
+                        borderColor: chartColors.blue,
+                        backgroundColor: 'rgba(88, 166, 255, 0.15)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: chartColors.blue,
+                        pointBorderColor: '#0d1117',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(13, 17, 23, 0.95)',
+                            borderColor: chartColors.blue,
+                            borderWidth: 1,
+                            padding: 12
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e' },
+                            title: { display: true, text: 'Days to Expiry', color: '#8b949e' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createRRTimeSeriesChart() {
+            const ctx = document.getElementById('rrTimeSeriesChart').getContext('2d');
+            const data = dataGen.generateTimeSeries(100);
+            const labels = Array.from({length: 100}, (_, i) => i);
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(163, 113, 247, 0.3)');
+            gradient.addColorStop(1, 'rgba(163, 113, 247, 0)');
+            
+            charts.rrTimeSeries = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: '25Δ Risk Reversal',
+                        data,
+                        borderColor: chartColors.purple,
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(13, 17, 23, 0.95)',
+                            borderColor: chartColors.purple,
+                            borderWidth: 1,
+                            padding: 12,
+                            callbacks: {
+                                label: (ctx) => `RR: ${ctx.parsed.y.toFixed(2)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+            
+            // Update stats
+            const rrData = data;
+            document.getElementById('rrHigh').textContent = Math.max(...rrData).toFixed(2);
+            document.getElementById('rrLow').textContent = Math.min(...rrData).toFixed(2);
+            document.getElementById('rrMean').textContent = (rrData.reduce((a,b) => a+b, 0) / rrData.length).toFixed(2);
+            const mean = rrData.reduce((a,b) => a+b, 0) / rrData.length;
+            const std = Math.sqrt(rrData.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / rrData.length);
+            document.getElementById('rrStd').textContent = std.toFixed(2);
+        }
+
+        function createButterflyChart() {
+            const ctx = document.getElementById('butterflyChart').getContext('2d');
+            const data = Array.from({length: 60}, () => 1.5 + Math.random() * 2);
+            
+            const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+            gradient.addColorStop(0, 'rgba(210, 153, 34, 0.3)');
+            gradient.addColorStop(1, 'rgba(210, 153, 34, 0)');
+            
+            charts.butterfly = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 60}, (_, i) => i),
+                    datasets: [{
+                        label: '25Δ Butterfly',
+                        data,
+                        borderColor: chartColors.yellow,
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createHistoryChart() {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            const data = dataGen.generateHistoricalData(90);
+            
+            charts.history = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.date),
+                    datasets: [
+                        {
+                            label: '25Δ Risk Reversal',
+                            data: data.map(d => d.rr25),
+                            borderColor: chartColors.blue,
+                            backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.2,
+                            pointRadius: 0,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: '25Δ Butterfly',
+                            data: data.map(d => d.bf25),
+                            borderColor: chartColors.yellow,
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.2,
+                            pointRadius: 0,
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'ATM IV',
+                            data: data.map(d => d.atmIV),
+                            borderColor: chartColors.cyan,
+                            borderWidth: 1.5,
+                            borderDash: [4, 4],
+                            fill: false,
+                            tension: 0.2,
+                            pointRadius: 0,
+                            yAxisID: 'y2'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: { 
+                        legend: { 
+                            display: true,
+                            position: 'top',
+                            labels: { 
+                                color: '#8b949e',
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e', maxTicksLimit: 10, font: { size: 10 } }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: chartColors.blue, font: { size: 10 } },
+                            title: { display: true, text: 'Risk Reversal', color: chartColors.blue }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            grid: { display: false },
+                            ticks: { color: chartColors.yellow, font: { size: 10 } },
+                            title: { display: true, text: 'Butterfly', color: chartColors.yellow }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
+                            grid: { display: false },
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function createGreeksCharts() {
+            const greeksData = dataGen.generateGreeksData();
+            
+            // Gamma Chart
+            const gammaCtx = document.getElementById('gammaChart').getContext('2d');
+            charts.gamma = new Chart(gammaCtx, {
+                type: 'bar',
+                data: {
+                    labels: greeksData.strikes,
+                    datasets: [{
+                        label: 'Gamma Exposure ($M)',
+                        data: greeksData.gamma,
+                        backgroundColor: greeksData.gamma.map(v => v >= 0 ? 'rgba(63, 185, 80, 0.6)' : 'rgba(248, 81, 73, 0.6)'),
+                        borderColor: greeksData.gamma.map(v => v >= 0 ? chartColors.green : chartColors.red),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        title: { display: true, text: 'Gamma Exposure by Strike', color: '#8b949e' }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#8b949e', maxTicksLimit: 8, font: { size: 9 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e', font: { size: 9 } }
+                        }
+                    }
+                }
+            });
+            
+            // Vega Chart
+            const vegaCtx = document.getElementById('vegaChart').getContext('2d');
+            charts.vega = new Chart(vegaCtx, {
+                type: 'bar',
+                data: {
+                    labels: greeksData.strikes,
+                    datasets: [{
+                        label: 'Vega Exposure ($M)',
+                        data: greeksData.vega,
+                        backgroundColor: 'rgba(163, 113, 247, 0.6)',
+                        borderColor: chartColors.purple,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        title: { display: true, text: 'Vega Exposure by Strike', color: '#8b949e' }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#8b949e', maxTicksLimit: 8, font: { size: 9 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { color: '#8b949e', font: { size: 9 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ==================== UI UPDATES ====================
+        function updateMetrics() {
+            dataGen.updatePrices();
+            
+            document.getElementById('spotPrice').textContent = dataGen.spot.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            const spotChg = (Math.random() - 0.4) * 1;
+            const spotEl = document.getElementById('spotChange');
+            spotEl.textContent = (spotChg >= 0 ? '+' : '') + spotChg.toFixed(2) + '%';
+            spotEl.className = 'text-xs px-2 py-0.5 rounded-full ' + (spotChg >= 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400');
+            
+            document.getElementById('atmIV').textContent = dataGen.atmIV.toFixed(2) + '%';
+            document.getElementById('rr25').textContent = dataGen.baseSkew.toFixed(2);
+            document.getElementById('bf25').textContent = dataGen.baseBF.toFixed(2);
+            
+            document.getElementById('rr10').textContent = (dataGen.baseSkew * 1.5).toFixed(2);
+            document.getElementById('bf10').textContent = (dataGen.baseBF * 1.6).toFixed(2);
+            document.getElementById('volOfVol').textContent = (3 + Math.random() * 3).toFixed(1);
+            document.getElementById('termSlope').textContent = (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 1.5).toFixed(1);
+            document.getElementById('realizedVol').textContent = (dataGen.atmIV - 2 - Math.random() * 3).toFixed(1) + '%';
+            document.getElementById('volPremium').textContent = '+' + (2 + Math.random() * 3).toFixed(1);
+            document.getElementById('ivRank').textContent = Math.floor(30 + Math.random() * 50) + '%';
+            document.getElementById('vixCorr').textContent = (-0.7 - Math.random() * 0.2).toFixed(2);
+            document.getElementById('pcRatio').textContent = (0.8 + Math.random() * 0.8).toFixed(2);
+            
+            const skewIndex = 120 + Math.random() * 25;
+            document.getElementById('skewIndex').textContent = skewIndex.toFixed(1);
+            
+            const percentile = Math.floor(55 + Math.random() * 35);
+            document.getElementById('skewPercentile').textContent = percentile + 'th';
+            document.getElementById('skewPctLabel').textContent = percentile + 'th percentile';
+            document.getElementById('skewBar').style.width = percentile + '%';
+            document.getElementById('skewMarker').style.left = percentile + '%';
+            
+            const zScore = (Math.random() * 3 - 0.5);
+            document.getElementById('skewZScore').textContent = zScore.toFixed(2);
+            document.getElementById('skewZScore').className = 'mono text-2xl font-bold ' + 
+                (Math.abs(zScore) > 2 ? 'text-red-400' : Math.abs(zScore) > 1 ? 'text-yellow-400' : 'text-white');
+            
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            document.getElementById('latency').textContent = Math.floor(8 + Math.random() * 15) + 'ms';
+        }
+
+        function updateRegime() {
+            const { regime, probs, color } = dataGen.getRegimeClassification();
+            
+            document.getElementById('regimeLabel').textContent = regime;
+            
+            const colors = {
+                'NORMAL': { text: 'text-green-400', glow: 'regime-glow-normal', ring: '#3fb950' },
+                'ELEVATED': { text: 'text-yellow-400', glow: 'regime-glow-elevated', ring: '#d29922' },
+                'STRESSED': { text: 'text-orange-400', glow: 'regime-glow-stressed', ring: '#ff8c00' },
+                'CRISIS': { text: 'text-red-400', glow: 'regime-glow-crisis', ring: '#f85149' }
+            };
+            
+            document.getElementById('regimeLabel').className = 'text-lg font-bold ' + colors[regime].text;
+            
+            const confidence = 70 + Math.floor(Math.random() * 25);
+            document.getElementById('regimeConfidence').textContent = 'Confidence: ' + confidence + '%';
+            document.getElementById('regimeScore').textContent = confidence;
+            document.getElementById('regimeRing').setAttribute('stroke', colors[regime].ring);
+            document.getElementById('regimeRing').setAttribute('stroke-dasharray', `${confidence} 100`);
+            
+            const regimeCard = document.getElementById('regimeCard');
+            regimeCard.className = 'glass-panel rounded-xl p-4 metric-card regime-indicator ' + colors[regime].glow;
+            
+            document.getElementById('regimeNormal').style.width = probs.normal + '%';
+            document.getElementById('regimeNormalPct').textContent = probs.normal + '%';
+            document.getElementById('regimeElevated').style.width = probs.elevated + '%';
+            document.getElementById('regimeElevatedPct').textContent = probs.elevated + '%';
+            document.getElementById('regimeStressed').style.width = probs.stressed + '%';
+            document.getElementById('regimeStressedPct').textContent = probs.stressed + '%';
+            document.getElementById('regimeCrisis').style.width = probs.crisis + '%';
+            document.getElementById('regimeCrisisPct').textContent = probs.crisis + '%';
+            
+            document.getElementById('transNormal').textContent = Math.floor(30 + Math.random() * 30) + '%';
+            document.getElementById('transElevated').textContent = Math.floor(20 + Math.random() * 30) + '%';
+            document.getElementById('transStressed').textContent = Math.floor(5 + Math.random() * 15) + '%';
+            
+            // Show alert banner for stressed/crisis regime
+            if (regime === 'STRESSED' || regime === 'CRISIS') {
+                document.getElementById('alertBanner').classList.remove('hidden');
+                document.getElementById('alertMessage').textContent = 
+                    regime === 'CRISIS' 
+                        ? '🚨 CRISIS regime detected - Reduce exposure immediately'
+                        : '⚠️ STRESSED regime detected - Consider adjusting positions';
+            } else {
+                document.getElementById('alertBanner').classList.add('hidden');
+            }
+        }
+
+        function updateSkewMetricsTable() {
+            const termData = dataGen.generateTermStructure();
+            const tbody = document.getElementById('skewMetricsTable');
+            
+            tbody.innerHTML = termData.tenors.slice(0, 8).map((tenor, i) => {
+                const chg = (Math.random() - 0.5) * 0.5;
+                const chgColor = chg >= 0 ? 'text-green-400' : 'text-red-400';
+                const chgIcon = chg >= 0 ? '▲' : '▼';
+                
+                return `
+                    <tr class="border-t border-gray-700/30 hover:bg-gray-800/30 transition-colors">
+                        <td class="py-2.5 text-gray-300 font-medium">${tenor}D</td>
+                        <td class="py-2.5 text-right text-cyan-400">${(dataGen.atmIV + (Math.random() - 0.5) * 2).toFixed(2)}%</td>
+                        <td class="py-2.5 text-right ${termData.rr25[i] < -3.5 ? 'text-red-400' : 'text-purple-400'}">${termData.rr25[i].toFixed(2)}</td>
+                        <td class="py-2.5 text-right text-yellow-400">${termData.bf25[i].toFixed(2)}</td>
+                        <td class="py-2.5 text-right ${chgColor} text-xs">${chgIcon} ${Math.abs(chg).toFixed(2)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateSignals() {
+            const signals = dataGen.generateSignals();
+            
+            document.getElementById('signalCount').textContent = signals.length;
+            
+            const activeContainer = document.getElementById('activeSignals');
+            activeContainer.innerHTML = signals.slice(0, 4).map((signal, index) => {
+                const colors = {
+                    'bearish_skew': { border: 'border-red-500/50', bg: 'bg-red-500/10', text: 'text-red-400' },
+                    'bullish_skew': { border: 'border-green-500/50', bg: 'bg-green-500/10', text: 'text-green-400' },
+                    'neutral': { border: 'border-blue-500/50', bg: 'bg-blue-500/10', text: 'text-blue-400' },
+                    'caution': { border: 'border-yellow-500/50', bg: 'bg-yellow-500/10', text: 'text-yellow-400' }
+                };
+                const c = colors[signal.direction];
+                
+                return `
+                    <div class="border-l-2 ${c.border} ${c.bg} rounded-r-lg px-3 py-2.5 animate-slide-in" style="animation-delay: ${index * 0.1}s">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-sm ${c.text}">${signal.name}</span>
+                            <span class="text-xs text-gray-400">${signal.tenor}D</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">${signal.strategy}</div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <div class="flex-1 bg-gray-700/50 rounded-full h-1.5">
+                                <div class="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" style="width: ${signal.strength * 100}%"></div>
+                            </div>
+                            <span class="text-xs mono text-gray-300">${(signal.strength * 100).toFixed(0)}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            const signalsList = document.getElementById('signalsList');
+            if (signalsList) {
+                const icons = {
+                    'bearish_skew': '📉',
+                    'bullish_skew': '📈',
+                    'neutral': '↔️',
+                    'caution': '⚠️'
+                };
+                
+                const riskColors = {
+                    'Low': 'bg-green-500/20 text-green-400',
+                    'Medium': 'bg-yellow-500/20 text-yellow-400',
+                    'High': 'bg-red-500/20 text-red-400'
+                };
+                
+                signalsList.innerHTML = signals.map((signal, index) => {
+                    const bgColors = {
+                        'bearish_skew': 'from-red-900/20',
+                        'bullish_skew': 'from-green-900/20',
+                        'neutral': 'from-blue-900/20',
+                        'caution': 'from-yellow-900/20'
+                    };
+                    
+                    return `
+                        <div class="bg-gradient-to-r ${bgColors[signal.direction]} to-transparent border border-gray-700/50 rounded-xl p-4 hover:border-gray-600 transition-all animate-slide-in" style="animation-delay: ${index * 0.1}s">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-3xl">${icons[signal.direction]}</span>
+                                    <div>
+                                        <div class="font-semibold text-lg">${signal.name}</div>
+                                        <div class="text-sm text-gray-400">${signal.strategy}</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-medium text-gray-300">${signal.tenor}D Tenor</div>
+                                    <div class="text-xs text-gray-500">${signal.timestamp}</div>
+                                    <span class="text-xs px-2 py-0.5 rounded-full ${riskColors[signal.risk]} mt-1 inline-block">${signal.risk} Risk</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex items-center gap-4">
+                                <div class="flex-1">
+                                    <div class="text-xs text-gray-400 mb-1.5">Signal Confidence</div>
+                                    <div class="bg-gray-700/50 rounded-full h-2.5">
+                                        <div class="h-2.5 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transition-all duration-500" style="width: ${signal.strength * 100}%"></div>
+                                    </div>
+                                </div>
+                                <div class="text-2xl mono font-bold text-white">${(signal.strength * 100).toFixed(0)}%</div>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-gray-700/30 flex justify-between items-center text-xs">
+                                <span class="text-gray-500">Expected P&L: <span class="${signal.pnl >= 0 ? 'text-green-400' : 'text-red-400'}">${signal.pnl >= 0 ? '+' : ''}$${signal.pnl.toFixed(0)}</span></span>
+                                <button class="px-3 py-1 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 transition">Execute →</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function generateSurfaceHeatmap() {
+            const { tenors, deltaLabels, surface, changes } = dataGen.generateSurface();
+            const container = document.getElementById('surfaceHeatmap');
+            
+            const minIV = Math.min(...surface.flat());
+            const maxIV = Math.max(...surface.flat());
+            
+            let html = `
+                <table class="w-full text-sm correlation-matrix">
+                    <thead>
+                        <tr>
+                            <th class="p-3 text-left text-gray-400 font-medium">DTE</th>
+                            ${deltaLabels.map(d => `<th class="p-3 text-center text-gray-400 font-medium">${d}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            tenors.forEach((tenor, i) => {
+                html += `<tr>
+                    <td class="p-3 text-gray-300 mono font-medium">${tenor}D</td>
+                    ${surface[i].map((iv, j) => {
+                        const normalized = (iv - minIV) / (maxIV - minIV);
+                        const hue = (1 - normalized) * 120;
+                        const chg = changes[i][j];
+                        const chgIndicator = chg >= 0.2 ? '↑' : chg <= -0.2 ? '↓' : '';
+                        const chgColor = chg >= 0.2 ? 'text-green-400' : chg <= -0.2 ? 'text-red-400' : '';
+                        
+                        return `<td class="p-3 text-center mono heatmap-cell rounded-lg m-0.5" style="background: hsla(${hue}, 60%, 35%, 0.7)">
+                            <div class="text-white font-medium">${iv.toFixed(1)}%</div>
+                            <div class="text-xs ${chgColor}">${chgIndicator}${chg >= 0 ? '+' : ''}${chg.toFixed(1)}</div>
+                        </td>`;
+                    }).join('')}
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function generateCorrelationMatrix() {
+            const { assets, matrix } = dataGen.generateCorrelationMatrix();
+            const container = document.getElementById('correlationMatrix');
+            
+            let html = `
+                <table class="w-full text-xs correlation-matrix">
+                    <thead>
+                        <tr>
+                            <th class="p-2"></th>
+                            ${assets.map(a => `<th class="p-2 text-center text-gray-400">${a}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            assets.forEach((asset, i) => {
+                html += `<tr>
+                    <td class="p-2 text-gray-400 font-medium">${asset}</td>
+                    ${matrix[i].map((corr, j) => {
+                        const absCorr = Math.abs(corr);
+                        let bgColor;
+                        if (i === j) {
+                            bgColor = 'rgba(88, 166, 255, 0.3)';
+                        } else if (corr > 0) {
+                            bgColor = `rgba(63, 185, 80, ${absCorr * 0.6})`;
+                        } else {
+                            bgColor = `rgba(248, 81, 73, ${absCorr * 0.6})`;
+                        }
+                        
+                        return `<td class="p-2 text-center mono rounded" style="background: ${bgColor}">${corr.toFixed(2)}</td>`;
+                    }).join('')}
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // ==================== TAB NAVIGATION ====================
+        function setupTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const panels = document.querySelectorAll('.tab-panel');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => {
+                        t.classList.remove('tab-active');
+                        t.classList.add('border-transparent');
+                    });
+                    tab.classList.add('tab-active');
+                    tab.classList.remove('border-transparent');
+                    
+                    const targetPanel = tab.dataset.tab;
+                    panels.forEach(panel => {
+                        panel.classList.add('hidden');
+                        if (panel.id === targetPanel + 'Panel') {
+                            panel.classList.remove('hidden');
+                        }
+                    });
+                    
+                    if (targetPanel === 'term' && !charts.term) createTermChart();
+                    if (targetPanel === 'history' && !charts.history) createHistoryChart();
+                    if (targetPanel === 'greeks' && !charts.gamma) createGreeksCharts();
+                    if (targetPanel === 'surface') generateSurfaceHeatmap();
+                    if (targetPanel === 'signals') updateSignals();
+                    if (targetPanel === 'correlation') generateCorrelationMatrix();
+                });
+            });
+        }
+
+        function setupTermMetricButtons() {
+            const btns = document.querySelectorAll('.term-metric-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btns.forEach(b => {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('bg-gray-700');
+                    });
+                    btn.classList.remove('bg-gray-700');
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    
+                    const metric = btn.dataset.metric;
+                    const data = dataGen.generateTermStructure();
+                    
+                    const labels = { rr25: '25Δ Risk Reversal', rr10: '10Δ Risk Reversal', bf25: '25Δ Butterfly', atmiv: 'ATM IV' };
+                    const colors = { rr25: chartColors.blue, rr10: chartColors.purple, bf25: chartColors.yellow, atmiv: chartColors.cyan };
+                    
+                    charts.term.data.datasets[0].data = data[metric];
+                    charts.term.data.datasets[0].label = labels[metric];
+                    charts.term.data.datasets[0].borderColor = colors[metric];
+                    charts.term.data.datasets[0].backgroundColor = colors[metric].replace(')', ', 0.15)').replace('rgb', 'rgba');
+                    charts.term.update();
+                });
+            });
+        }
+
+        function setupRRPeriodButtons() {
+            const btns = document.querySelectorAll('.rr-period-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    btns.forEach(b => {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('bg-gray-700');
+                    });
+                    btn.classList.remove('bg-gray-700');
+                    btn.classList.add('bg-blue-600', 'text-white');
+                    
+                    const points = { '1D': 50, '1W': 100, '1M': 200, '3M': 400, '1Y': 500 }[btn.dataset.period];
+                    const data = dataGen.generateTimeSeries(points);
+                    
+                    charts.rrTimeSeries.data.labels = Array.from({length: points}, (_, i) => i);
+                    charts.rrTimeSeries.data.datasets[0].data = data;
+                    charts.rrTimeSeries.update();
+                    
+                    document.getElementById('rrHigh').textContent = Math.max(...data).toFixed(2);
+                    document.getElementById('rrLow').textContent = Math.min(...data).toFixed(2);
+                    document.getElementById('rrMean').textContent = (data.reduce((a,b) => a+b, 0) / data.length).toFixed(2);
+                    const mean = data.reduce((a,b) => a+b, 0) / data.length;
+                    const std = Math.sqrt(data.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / data.length);
+                    document.getElementById('rrStd').textContent = std.toFixed(2);
+                });
+            });
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+        }
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            createSmileChart();
+            createRRTimeSeriesChart();
+            createButterflyChart();
+            
+            setupTabs();
+            setupTermMetricButtons();
+            setupRRPeriodButtons();
+            
+            updateMetrics();
+            updateRegime();
+            updateSkewMetricsTable();
+            updateSignals();
+            updateClock();
+            
+            setInterval(updateClock, 1000);
+            
+            setInterval(() => {
+                updateMetrics();
+                updateSkewMetricsTable();
+                
+                const smileData = dataGen.generateSmileData(parseInt(document.getElementById('expirySelect').value));
+                charts.smile.data.datasets[0].data = smileData.ivs;
+                charts.smile.data.datasets[1].data = smileData.sabrFit;
+                charts.smile.update('none');
+                
+                const bfData = Array.from({length: 60}, () => 1.5 + Math.random() * 2);
+                charts.butterfly.data.datasets[0].data = bfData;
+                charts.butterfly.update('none');
+                
+                document.getElementById('bf10Value').textContent = (3 + Math.random() * 1.5).toFixed(2);
+                document.getElementById('convexityScore').textContent = (0.5 + Math.random() * 0.4).toFixed(2);
+            }, 2500);
+            
+            setInterval(updateRegime, 8000);
+            setInterval(updateSignals, 20000);
+            
+            document.getElementById('expirySelect').addEventListener('change', (e) => {
+                const smileData = dataGen.generateSmileData(parseInt(e.target.value));
+                charts.smile.data.labels = smileData.strikes;
+                charts.smile.data.datasets[0].data = smileData.ivs;
+                charts.smile.data.datasets[1].data = smileData.sabrFit;
+                charts.smile.data.datasets[2].data = smileData.yesterdayIVs;
+                charts.smile.update();
+            });
+            
+            document.getElementById('historyPeriod').addEventListener('change', (e) => {
+                if (charts.history) {
+                    const data = dataGen.generateHistoricalData(parseInt(e.target.value));
+                    charts.history.data.labels = data.map(d => d.date);
+                    charts.history.data.datasets[0].data = data.map(d => d.rr25);
+                    charts.history.data.datasets[1].data = data.map(d => d.bf25);
+                    charts.history.data.datasets[2].data = data.map(d => d.atmIV);
+                    charts.history.update();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
